@@ -50,6 +50,8 @@ const int delayForClock = 100;
 unsigned long timeForTurningClockOff = 0;
 const int clockInputPin = 11;
 
+bool isMidiClockOn = false;
+
 
 // SETUP
 void setup() { 
@@ -77,7 +79,7 @@ void loop() {
     buttons();
     potentiometers();
     
-    digitalWrite(clockPin, LOW);
+    
   }
 }
 
@@ -93,14 +95,20 @@ void recieveClock() {
     timeForTurningClockOff = millis() + delayForClock;
   }
 
-  if (millis() < timeForTurningClockOff) {
-    digitalWrite(clockPin, HIGH);
-  } else if (MIDI.read()) {
+  if (MIDI.read()) {
     // Check if it's a Note On or Note Off message
     if (MIDI.getType() == midi::NoteOn) {
       // Note On event
-      digitalWrite(clockPin, HIGH);
+      isMidiClockOn = true;
+    } else if (MIDI.getType() == midi::NoteOff) {
+      isMidiClockOn = false;
     }
+  }
+
+  if (millis() < timeForTurningClockOff || isMidiClockOn) {
+    digitalWrite(clockPin, HIGH);
+  } else {
+    digitalWrite(clockPin, LOW);
   }
 }
 
