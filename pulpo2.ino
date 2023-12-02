@@ -75,7 +75,7 @@ void loop() {
     
   switches();
   recieveClock();
-  if (digitalRead(!isOtherSwitch)){
+  if (isOtherSwitch){
     buttons();
     potentiometers();
     
@@ -85,7 +85,7 @@ void loop() {
 
 void switches() {
   isVelocitySwitch = digitalRead(velocitySwitchPin);
-  isOtherSwitch = digitalRead(isOtherSwitch);
+  isOtherSwitch = digitalRead(otherSwitchPin);
 }
 
 
