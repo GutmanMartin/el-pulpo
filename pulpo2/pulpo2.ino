@@ -3,6 +3,7 @@
   luego envía los mensajes por canal 1
   tenés que enviarle los mensajes por un canal que no sea el 1, porque sino loopmidi hace feedback
 
+  oneNoteMode ahce que todos los potes envíen la misma nota y modifiquen el mismo CC, para hacer melodías
 */
 
 
@@ -22,13 +23,15 @@ int buttonPState[NButtons] = {};        // stores the button previous value
 
 // SWITCHES
 const int velocitySwitchPin = 10;
-const int otherSwitchPin = 12;
+const int oneNoteSwitch = 12;
 
 bool isVelocitySwitch = false;
-bool isOtherSwitch = false;
+bool oneNoteMode = false;
 
 
 // POTENTIOMETERS
+// const int notesToSend[NPots] = {69, 67, 65, 64, 62, 60}; to use with impulse, needs implementation
+
 const int MAX_POT_STATE = 900;
 const int NPots = 6; //* total numbers of pots (slide & rotary)
 const int potPin[NPots] = {A5, A4, A3, A2, A1, A0}; //* Analog pins of each pot connected straight to the Arduino i.e 4 pots, {A3, A2, A1, A0};
@@ -36,7 +39,8 @@ const int potPin[NPots] = {A5, A4, A3, A2, A1, A0}; //* Analog pins of each pot 
 
 int potPState[NPots] = {0}; // Previous state of the pot; delete 0 if 0 pots
 int potVelocityState[NPots] = {127,127,127,127,127,127}; // Previous state of the pot; delete 0 if 0 pots
-
+int oneNote = 127;
+int oneNoteCC = 127;
 
 // MIDI
 byte midiCh = 1; //** MIDI channel to be used; You can add more if you need to reorganize or have a billion buttons/pots
@@ -62,7 +66,7 @@ void setup() {
     pinMode(buttonPin[i], INPUT_PULLUP);
   }
   pinMode(velocitySwitchPin, INPUT_PULLUP);
-  pinMode(otherSwitchPin, INPUT_PULLUP);
+  pinMode(oneNoteSwitch, INPUT_PULLUP);
 
   pinMode(clockInputPin, INPUT);
   pinMode(clockPin, OUTPUT);
@@ -75,17 +79,14 @@ void loop() {
     
   switches();
   recieveClock();
-  if (isOtherSwitch){
-    buttons();
-    potentiometers();
-    
-    
-  }
+  buttons();
+  potentiometers();
+ 
 }
 
 void switches() {
   isVelocitySwitch = digitalRead(velocitySwitchPin);
-  isOtherSwitch = digitalRead(otherSwitchPin);
+  oneNoteMode = digitalRead(oneNoteSwitch);
 }
 
 
@@ -134,19 +135,38 @@ void potentiometers() {
     int potState = constrain(map(analogRead(potPin[i]), 0, MAX_POT_STATE, 0, 127), 0, 127);
     
     if (potPState[i] != potState) {
-      if (potState > 0 && !isVelocitySwitch) MIDI.sendControlChange(note + NButtons + (NPots - i -1), potState, midiCh);  //MIDI.sendPolyPressure(note + NButtons + (NPots - i -1), potState, midiCh);
+       
+
+      if (potState > 0 && !isVelocitySwitch && !oneNoteMode) MIDI.sendControlChange(note + NButtons + (NPots - i -1), potState, midiCh);
+
+      if (potState > 0 && !isVelocitySwitch && oneNoteMode) MIDI.sendControlChange(oneNoteCC, potState, midiCh);
+      
       if (potPState[i] < 1 && potState > 1){
+
         if(isVelocitySwitch) {
           MIDI.sendNoteOn(note + NButtons + (NPots - i -1), potState, midiCh); 
           potVelocityState[i] = potState;
         } else {
-          MIDI.sendNoteOn(note + NButtons + (NPots - i -1), potVelocityState[i], midiCh);
+          if (oneNoteMode) {
+            MIDI.sendNoteOn(oneNote, potVelocityState[i], midiCh);
+          } else {
+            MIDI.sendNoteOn(note + NButtons + (NPots - i -1), potVelocityState[i], midiCh);
+          }
         }
-      } else if (potPState[i] > 1 && potState < 1){
 
-        MIDI.sendNoteOn(note + NButtons + (NPots - i -1), 0, midiCh);
+      } else if (potPState[i] > 1 && potState < 1){
+        if (oneNoteMode) {
+          MIDI.sendNoteOn(oneNote, 0, midiCh);
+        } else {
+          MIDI.sendNoteOn(note + NButtons + (NPots - i -1), 0, midiCh);
+        }
       }
-       potPState[i] = potState;
+      potPState[i] = potState;
+
+        
+
+
+      
     }
   }
 }
